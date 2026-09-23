@@ -60,3 +60,8 @@ class LeadResponse(BaseModel):
     room_id: str
     status: str
     message: str
+
+class RoomStatusUpdateResponse(BaseModel):
+    room_id: str
+    status: str
+    message: str

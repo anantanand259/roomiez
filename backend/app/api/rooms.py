@@ -15,6 +15,7 @@ from typing import Optional
 from app.schemas.room_schema import RoomOut
 from app.models.models import Lead
 from app.schemas.room_schema import LeadCreate, LeadResponse
+from app.schemas.room_schema import RoomStatusUpdateResponse
 
 router = APIRouter()
 
@@ -150,4 +151,22 @@ def create_lead(room_id: str, lead: LeadCreate, db: Session = Depends(get_db)):
         room_id=str(room.id),
         status=new_lead.status,
         message="Interest recorded successfully"
+    )
+
+@router.patch("/admin/rooms/{room_id}/deactivate", response_model=RoomStatusUpdateResponse)
+def deactivate_room(room_id: str, db: Session = Depends(get_db)):
+    room_id = room_id.strip()
+    room = db.query(Room).filter(Room.id == room_id).first()
+
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    room.status = RoomStatus.INACTIVE
+    db.commit()
+    db.refresh(room)
+
+    return RoomStatusUpdateResponse(
+        room_id=str(room.id),
+        status=room.status.value if hasattr(room.status, "value") else room.status,
+        message="Room marked as inactive"
     )
