@@ -34,3 +34,19 @@ class ApprovalResponse(BaseModel):
     room_id: str
     status: str
     message: str
+
+class RoomOut(BaseModel):
+    id: str
+    title: str
+    description: Optional[str] = None
+    rent: float
+    max_occupants: Optional[int] = None
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    locality: Optional[str] = None
+    status: str
+    last_verified_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

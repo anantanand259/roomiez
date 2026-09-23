@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from app.models.models import Room, RoomStatus
 from app.schemas.room_schema import ApprovalResponse
+from typing import Optional
+from app.schemas.room_schema import RoomOut
 
 router = APIRouter()
 
@@ -84,3 +86,41 @@ def approve_submission(submission_id: str, db: Session = Depends(get_db)):
         status="ACTIVE",
         message="Room approved and published successfully"
     )
+
+@router.get("/rooms", response_model=List[RoomOut])
+def search_rooms(
+    min_rent: Optional[float] = None,
+    max_rent: Optional[float] = None,
+    locality: Optional[str] = None,
+    max_occupants: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(Room).filter(Room.status == RoomStatus.ACTIVE)
+
+    if min_rent is not None:
+        query = query.filter(Room.rent >= min_rent)
+    if max_rent is not None:
+        query = query.filter(Room.rent <= max_rent)
+    if locality is not None:
+        query = query.filter(Room.locality.ilike(f"%{locality}%"))
+    if max_occupants is not None:
+        query = query.filter(Room.max_occupants <= max_occupants)
+
+    rooms = query.all()
+
+    result = []
+    for r in rooms:
+        result.append(RoomOut(
+            id=str(r.id),
+            title=r.title,
+            description=r.description,
+            rent=r.rent,
+            max_occupants=r.max_occupants,
+            address=r.address,
+            latitude=r.latitude,
+            longitude=r.longitude,
+            locality=r.locality,
+            status=r.status.value if hasattr(r.status, "value") else r.status,
+            last_verified_at=r.last_verified_at
+        ))
+    return result
