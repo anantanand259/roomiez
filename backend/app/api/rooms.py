@@ -13,6 +13,8 @@ from app.models.models import Room, RoomStatus
 from app.schemas.room_schema import ApprovalResponse
 from typing import Optional
 from app.schemas.room_schema import RoomOut
+from app.models.models import Lead
+from app.schemas.room_schema import LeadCreate, LeadResponse
 
 router = APIRouter()
 
@@ -124,3 +126,28 @@ def search_rooms(
             last_verified_at=r.last_verified_at
         ))
     return result
+
+@router.post("/rooms/{room_id}/lead", response_model=LeadResponse)
+def create_lead(room_id: str, lead: LeadCreate, db: Session = Depends(get_db)):
+    room_id = room_id.strip()
+    room = db.query(Room).filter(Room.id == room_id).first()
+
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    new_lead = Lead(
+        id=uuid.uuid4(),
+        student_id=lead.student_id,
+        room_id=room.id,
+        status="INTERESTED"
+    )
+    db.add(new_lead)
+    db.commit()
+    db.refresh(new_lead)
+
+    return LeadResponse(
+        id=str(new_lead.id),
+        room_id=str(room.id),
+        status=new_lead.status,
+        message="Interest recorded successfully"
+    )

@@ -50,3 +50,13 @@ class RoomOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class LeadCreate(BaseModel):
+    student_id: Optional[str] = None
+    message: Optional[str] = None
+
+class LeadResponse(BaseModel):
+    id: str
+    room_id: str
+    status: str
+    message: str
