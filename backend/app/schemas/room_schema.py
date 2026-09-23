@@ -29,3 +29,8 @@ class RoomSubmissionOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ApprovalResponse(BaseModel):
+    room_id: str
+    status: str
+    message: str

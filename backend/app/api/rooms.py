@@ -7,6 +7,10 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_db
 from app.schemas.room_schema import RoomSubmissionCreate, RoomSubmissionResponse
 from app.models.models import RoomSubmission
+from datetime import datetime, timezone
+from fastapi import HTTPException
+from app.models.models import Room, RoomStatus
+from app.schemas.room_schema import ApprovalResponse
 
 router = APIRouter()
 
@@ -40,3 +44,43 @@ def get_all_submissions(db: Session = Depends(get_db)):
             created_at=s.created_at
         ))
     return result
+
+
+@router.post("/admin/submissions/{submission_id}/approve", response_model=ApprovalResponse)
+def approve_submission(submission_id: str, db: Session = Depends(get_db)):
+    submission = db.query(RoomSubmission).filter(RoomSubmission.id == submission_id).first()
+
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    if submission.status == "APPROVED":
+        raise HTTPException(status_code=409, detail="Submission already approved")
+
+    payload = json.loads(submission.payload)
+
+    new_room = Room(
+        id=uuid.uuid4(),
+        title=payload.get("title"),
+        description=payload.get("description"),
+        rent=payload.get("rent"),
+        max_occupants=payload.get("max_occupants"),
+        address=payload.get("address"),
+        latitude=payload.get("latitude"),
+        longitude=payload.get("longitude"),
+        locality=payload.get("locality"),
+        status=RoomStatus.ACTIVE,
+        last_verified_at=datetime.now(timezone.utc),
+        collector_id=submission.collector_id
+    )
+    db.add(new_room)
+
+    submission.status = "APPROVED"
+
+    db.commit()
+    db.refresh(new_room)
+
+    return ApprovalResponse(
+        room_id=str(new_room.id),
+        status="ACTIVE",
+        message="Room approved and published successfully"
+    )
