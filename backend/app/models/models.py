@@ -22,6 +22,7 @@ class User(Base):
     name = Column(String, nullable=False)
     phone = Column(String, unique=True)
     email = Column(String, unique=True)
+    hashed_password = Column(String, nullable=False)
     role = Column(Enum(UserRole), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -83,4 +84,29 @@ class Lead(Base):
     student_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     room_id = Column(UUID(as_uuid=True), ForeignKey("rooms.id"))
     status = Column(String, default="INTERESTED")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class StudentProfile(Base):
+    __tablename__ = "student_profiles"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    budget_min = Column(Float)
+    budget_max = Column(Float)
+    people = Column(Integer)
+    preferred_area = Column(String)
+    max_distance_km = Column(Float)
+    bathroom_preference = Column(String)
+    kitchen_preference = Column(String)
+    furnished_preference = Column(String)
+    move_in_date = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class Feedback(Base):
+    __tablename__ = "feedback"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    student_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    room_id = Column(UUID(as_uuid=True), ForeignKey("rooms.id"))
+    rating = Column(Integer)
+    issue = Column(String)
+    comment = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -16,6 +16,8 @@ from app.schemas.room_schema import RoomOut
 from app.models.models import Lead
 from app.schemas.room_schema import LeadCreate, LeadResponse
 from app.schemas.room_schema import RoomStatusUpdateResponse
+from app.core.auth_deps import require_role
+from app.schemas.room_schema import RejectionResponse
 
 router = APIRouter()
 
@@ -38,7 +40,7 @@ def create_room_submission(submission: RoomSubmissionCreate, db: Session = Depen
     )
 
 @router.get("/admin/submissions", response_model=List[RoomSubmissionOut])
-def get_all_submissions(db: Session = Depends(get_db)):
+def get_all_submissions(db: Session = Depends(get_db), current_user = Depends(require_role("ADMIN"))):
     submissions = db.query(RoomSubmission).all()
     result = []
     for s in submissions:
@@ -52,7 +54,7 @@ def get_all_submissions(db: Session = Depends(get_db)):
 
 
 @router.post("/admin/submissions/{submission_id}/approve", response_model=ApprovalResponse)
-def approve_submission(submission_id: str, db: Session = Depends(get_db)):
+def approve_submission(submission_id: str, db: Session = Depends(get_db), current_user = Depends(require_role("ADMIN"))):
     submission = db.query(RoomSubmission).filter(RoomSubmission.id == submission_id).first()
 
     if not submission:
@@ -154,7 +156,7 @@ def create_lead(room_id: str, lead: LeadCreate, db: Session = Depends(get_db)):
     )
 
 @router.patch("/admin/rooms/{room_id}/deactivate", response_model=RoomStatusUpdateResponse)
-def deactivate_room(room_id: str, db: Session = Depends(get_db)):
+def deactivate_room(room_id: str, db: Session = Depends(get_db), current_user = Depends(require_role("ADMIN"))):
     room_id = room_id.strip()
     room = db.query(Room).filter(Room.id == room_id).first()
 
@@ -169,4 +171,44 @@ def deactivate_room(room_id: str, db: Session = Depends(get_db)):
         room_id=str(room.id),
         status=room.status.value if hasattr(room.status, "value") else room.status,
         message="Room marked as inactive"
+    )
+
+@router.patch("/admin/rooms/{room_id}/reactivate", response_model=RoomStatusUpdateResponse)
+def reactivate_room(room_id: str, db: Session = Depends(get_db), current_user = Depends(require_role("ADMIN"))):
+    room_id = room_id.strip()
+    room = db.query(Room).filter(Room.id == room_id).first()
+
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    room.status = RoomStatus.ACTIVE
+    room.last_verified_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(room)
+
+    return RoomStatusUpdateResponse(
+        room_id=str(room.id),
+        status=room.status.value if hasattr(room.status, "value") else room.status,
+        message="Room re-verified and reactivated"
+    )
+
+@router.post("/admin/submissions/{submission_id}/reject", response_model=RejectionResponse)
+def reject_submission(submission_id: str, db: Session = Depends(get_db), current_user = Depends(require_role("ADMIN"))):
+    submission_id = submission_id.strip()
+    submission = db.query(RoomSubmission).filter(RoomSubmission.id == submission_id).first()
+
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    if submission.status == "APPROVED":
+        raise HTTPException(status_code=409, detail="Cannot reject an already approved submission")
+
+    submission.status = "REJECTED"
+    db.commit()
+    db.refresh(submission)
+
+    return RejectionResponse(
+        submission_id=str(submission.id),
+        status=submission.status,
+        message="Submission rejected"
     )

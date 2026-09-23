@@ -65,3 +65,8 @@ class RoomStatusUpdateResponse(BaseModel):
     room_id: str
     status: str
     message: str
+
+class RejectionResponse(BaseModel):
+    submission_id: str
+    status: str
+    message: str
